@@ -1,6 +1,10 @@
 import os
+import platform
+import shutil
+import subprocess
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
+
 from file_operations import *
 from utils import list_drives
 
@@ -22,6 +26,7 @@ class FileExplorer:
         self.clipboard = None
         self.current_path = None
 
+        # TOP: lecteur + chemin
         top_frame = tk.Frame(root, bg="#f0f0f0")
         top_frame.pack(fill="x", padx=10, pady=10)
 
@@ -32,7 +37,7 @@ class FileExplorer:
         self.path_label = tk.Label(top_frame, text="", anchor='w', bg="white", relief="sunken", height=2)
         self.path_label.pack(fill="x", expand=True)
 
-        # Buttons
+        # BOUTONS
         button_frame = tk.Frame(root, bg="#f0f0f0")
         button_frame.pack(fill="x", padx=10, pady=(0, 10))
 
@@ -48,7 +53,7 @@ class FileExplorer:
         for (text, command) in buttons:
             ttk.Button(button_frame, text=text, command=command).pack(side="left", padx=5)
 
-        # Treeview
+        # ARBRE DES FICHIERS
         tree_frame = tk.Frame(root)
         tree_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
@@ -60,6 +65,17 @@ class FileExplorer:
         self.tree.configure(yscrollcommand=scrollbar.set)
 
         self.tree.bind("<Double-1>", self.on_double_click)
+        self.tree.bind("<Button-3>", self.show_context_menu)
+
+        # MENU CONTEXTUEL
+        self.context_menu = tk.Menu(self.root, tearoff=0)
+        self.context_menu.add_command(label="📂 Ouvrir", command=self.context_open)
+        self.context_menu.add_command(label="📋 Copier", command=self.copy_selected)
+        self.context_menu.add_command(label="📥 Coller", command=self.paste_file)
+        self.context_menu.add_command(label="✏️ Renommer", command=self.rename_selected)
+        self.context_menu.add_command(label="🗑 Supprimer", command=self.delete_selected)
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label="📁 Nouveau dossier", command=self.create_new_folder)
 
         # Charger le disque par défaut
         default_drive = self.drive_combo['values'][0] if self.drive_combo['values'] else "/"
@@ -90,6 +106,33 @@ class FileExplorer:
             full_path, item_type = self.tree.item(selected_item, "values")
             if item_type == "dossier":
                 self.load_directory(full_path)
+            else:
+                self.open_file(full_path)
+
+    def show_context_menu(self, event):
+        selected_item = self.tree.identify_row(event.y)
+        if selected_item:
+            self.tree.selection_set(selected_item)
+            self.context_menu.post(event.x_root, event.y_root)
+
+    def context_open(self):
+        path, item_type = self.get_selected_path()
+        if path:
+            if item_type == "dossier":
+                self.load_directory(path)
+            else:
+                self.open_file(path)
+
+    def open_file(self, path):
+        try:
+            if platform.system() == "Windows":
+                os.startfile(path)
+            elif platform.system() == "Darwin":
+                subprocess.Popen(["open", path])
+            else:
+                subprocess.Popen(["xdg-open", path])
+        except Exception as e:
+            messagebox.showerror("Erreur d'ouverture", str(e))
 
     def go_back(self):
         if not self.current_path:
@@ -146,3 +189,9 @@ class FileExplorer:
             path = os.path.join(self.current_path, name)
             create_folder(path)
             self.load_directory(self.current_path)
+
+# Pour exécuter
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = FileExplorer(root)
+    root.mainloop()
