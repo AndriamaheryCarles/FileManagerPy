@@ -2,11 +2,13 @@ import os
 import platform
 import shutil
 import subprocess
+import time
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
 
 from file_operations import *
 from utils import list_drives
+
 
 class FileExplorer:
     def __init__(self, root):
@@ -48,6 +50,7 @@ class FileExplorer:
             ("🗑 Supprimer", self.delete_selected),
             ("✏️ Renommer", self.rename_selected),
             ("📁 Nouveau dossier", self.create_new_folder),
+            ("📑 Propriétés", self.show_properties),  # ➕ Nouveau bouton
         ]
 
         for (text, command) in buttons:
@@ -74,6 +77,7 @@ class FileExplorer:
         self.context_menu.add_command(label="📥 Coller", command=self.paste_file)
         self.context_menu.add_command(label="✏️ Renommer", command=self.rename_selected)
         self.context_menu.add_command(label="🗑 Supprimer", command=self.delete_selected)
+        self.context_menu.add_command(label="📑 Propriétés", command=self.show_properties)  # ➕ Menu clic-droit
         self.context_menu.add_separator()
         self.context_menu.add_command(label="📁 Nouveau dossier", command=self.create_new_folder)
 
@@ -190,7 +194,45 @@ class FileExplorer:
             create_folder(path)
             self.load_directory(self.current_path)
 
-# Pour exécuter
+    def show_properties(self):
+        path, item_type = self.get_selected_path()
+        if not path:
+            return
+        try:
+            size = self.get_readable_size(self.get_size(path))
+            location = os.path.abspath(path)
+            modified_time = time.ctime(os.path.getmtime(path))
+
+            info = f"Nom : {os.path.basename(path)}\n"
+            info += f"Type : {item_type}\n"
+            info += f"Taille : {size}\n"
+            info += f"Localisation : {location}\n"
+            info += f"Dernière modification : {modified_time}"
+
+            messagebox.showinfo("📑 Propriétés", info)
+        except Exception as e:
+            messagebox.showerror("Erreur", str(e))
+
+    def get_size(self, path):
+        total_size = 0
+        if os.path.isfile(path):
+            return os.path.getsize(path)
+        for dirpath, _, filenames in os.walk(path):
+            for f in filenames:
+                fp = os.path.join(dirpath, f)
+                if os.path.isfile(fp):
+                    total_size += os.path.getsize(fp)
+        return total_size
+
+    def get_readable_size(self, size, suffix="B"):
+        for unit in ["", "K", "M", "G", "T", "P"]:
+            if size < 1024.0:
+                return f"{size:.2f} {unit}{suffix}"
+            size /= 1024.0
+        return f"{size:.2f} P{suffix}"
+
+
+# Lancer l'application
 if __name__ == "__main__":
     root = tk.Tk()
     app = FileExplorer(root)
